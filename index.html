@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        div#availibale-jokes-element {
+            display: flex;
+            flex-direction: column;
+            gap: 12px 0;
+            border: solid 2px black;
+            padding: 4px;
+        }
+    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jokes</title>
+</head>
+<body>
+    <div>
+        <h1>Availibale jokes: </h1>
+        <div id="availibale-jokes-element"></div>
+    </div>
+    <script>
+        const availibaleJokesElement = document.getElementById("availibale-jokes-element");
+        async function getJokes() {
+            const response = await fetch("/jokes");
+            const data = await response.json();
+
+            return data;
+        }
+
+        async function renderJokes () {
+            const jokes = await getJokes();
+            jokes.forEach(joke => {
+                const jokeElement = document.createElement("div");
+                jokeElement.innerHTML = `
+                    <p>${joke.content}</p>
+                    <div class="joke">
+                        <button onclick="reactToJoke()">like</button>
+                        <button onclick="reactToJoke()">dislike</button>
+                    </div>
+                `;
+                availibaleJokesElement.append(jokeElement);
+            });
+
+        }
+        renderJokes()
+    </script>
+</body>
+</html>

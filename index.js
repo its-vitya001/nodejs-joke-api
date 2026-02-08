@@ -1,6 +1,6 @@
 const http = require("http");
 const fs = require("fs");
-const path = require("path")
+const path = require("path");
 
 const jokesDataPath = path.join(__dirname, "Data")
 const jokesDataDirectory = fs.readdirSync(jokesDataPath);
@@ -36,11 +36,54 @@ function addJoke (request, response) {
     });
 }
 
+function reactToJoke (request, response, reaction) {
+    const baseUrl = `http://${request.headers.host}`;
+    const mainUrl = new URL(request.url, baseUrl);
+    const id = mainUrl.searchParams.get("joke-id");
+
+    if (id) {
+        const filePath = path.join(__dirname, "Data", `${id}.json`);
+        const file = fs.readFileSync(filePath);
+        let fileContent = JSON.parse(Buffer.from(file).toString());
+        
+        if (reaction == "like") {
+            fileContent.likes >= 0 ? fileContent.likes += 1 : fileContent.likes;
+        } else if (reaction == "unlike") {
+            fileContent.likes > 0 ? fileContent.likes -= 1 : fileContent.likes;
+        } 
+
+        if (reaction == "dislike") {
+            fileContent.dislikes >= 0 ? fileContent.dislikes += 1 : fileContent.dislikes;
+        } else if (reaction == "undislike") {
+            fileContent.dislikes > 0 ? fileContent.dislikes -= 1 : fileContent.dislikes;
+        }
+
+        fs.writeFileSync(filePath, JSON.stringify(fileContent));
+    }
+    response.end()
+}
+
 const server = http.createServer((request, response) => {
     if (request.url == "/jokes" && request.method == "GET") {
         getAllJokes(request, response);
     } else if (request.url == "/addJoke" && request.method == "POST") {
         addJoke(request, response);
+    }
+
+    if (request.url.startsWith("/like")) {
+        reactToJoke(request, response, "like");
+    } else if (request.url.startsWith("/unlike")) {
+        reactToJoke(request, response, "unlike");
+    }
+
+    if (request.url.startsWith("/dislike")) {
+        reactToJoke(request, response, "dislike")
+    } else if (request.url.startsWith("/undislike")) {
+        reactToJoke(request, response, "undislike");
+    }
+
+    if (request.url == "/") {
+        response.end(fs.readFileSync("index.html", "utf-8"));
     }
 })
 
