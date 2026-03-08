@@ -5,6 +5,32 @@ const path = require("path");
 const jokesDataPath = path.join(__dirname, "Data")
 const jokesDataDirectory = fs.readdirSync(jokesDataPath);
 
+const rootDir = path.join(__dirname, "public"); 
+
+const mimeTypes = {
+  '.html': 'text/html',
+  '.js': 'text/javascript',
+  '.css': 'text/css',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.svg': 'image/svg+xml',
+};
+
+function serveStaticFile(filePath, response) {
+    const extname = path.extname(filePath).toLowerCase();
+    const contentType = mimeTypes[extname] || "application/octet-stream";
+
+    fs.readFile(filePath, (err, content) => {
+        if (err) {
+            response.writeHead(404);
+            return response.end("404 Not Found");
+        }
+        response.writeHead(200, { "Content-Type": contentType });
+        response.end(content);
+    });
+}
+
 function getAllJokes (request, response) {
     let jokes = [];
     
@@ -28,7 +54,8 @@ function addJoke (request, response) {
 
     request.on("end", () => {
         const joke = JSON.parse(data);
-        joke.like, joke.dislike = 0;
+        joke.likes = 0;
+        joke.dislikes = 0;
 
         const filePath = path.join(jokesDataPath, `${jokesDataDirectory.length}.json`);
         const file = fs.writeFileSync(filePath, JSON.stringify(joke));
@@ -37,9 +64,9 @@ function addJoke (request, response) {
 }
 
 function reactToJoke (request, response, reaction) {
-    const baseUrl = `http://${request.headers.host}`;
+    const baseUrl = `http://localhost:3000`;
     const mainUrl = new URL(request.url, baseUrl);
-    const id = mainUrl.searchParams.get("joke-id");
+    const id = mainUrl.searchParams.get("id");
 
     if (id) {
         const filePath = path.join(__dirname, "Data", `${id}.json`);
@@ -59,32 +86,38 @@ function reactToJoke (request, response, reaction) {
         }
 
         fs.writeFileSync(filePath, JSON.stringify(fileContent));
+
+        fileContent.id = id;
+
+        return response.end(JSON.stringify(fileContent))
     }
     response.end()
 }
 
 const server = http.createServer((request, response) => {
+    response.setHeader("Access-Control-Allow-Origin", "*");
+
     if (request.url == "/jokes" && request.method == "GET") {
-        getAllJokes(request, response);
+        return getAllJokes(request, response);
     } else if (request.url == "/addJoke" && request.method == "POST") {
-        addJoke(request, response);
+       return addJoke(request, response);
     }
 
     if (request.url.startsWith("/like")) {
-        reactToJoke(request, response, "like");
+        return reactToJoke(request, response, "like");
     } else if (request.url.startsWith("/unlike")) {
-        reactToJoke(request, response, "unlike");
+        return reactToJoke(request, response, "unlike");
     }
 
     if (request.url.startsWith("/dislike")) {
-        reactToJoke(request, response, "dislike")
+        return reactToJoke(request, response, "dislike")
     } else if (request.url.startsWith("/undislike")) {
-        reactToJoke(request, response, "undislike");
+        return reactToJoke(request, response, "undislike");
     }
 
-    if (request.url == "/") {
-        response.end(fs.readFileSync("index.html", "utf-8"));
-    }
+    let urlPath = request.url === "/" ? "/index.html" : request.url;
+    let filePath = path.join(rootDir, urlPath);
+    serveStaticFile(filePath, response);
 })
 
 server.listen(3000, () => {
